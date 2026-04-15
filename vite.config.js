@@ -1,6 +1,5 @@
 import autoprefixer from "autoprefixer";
 import { execSync } from "child_process";
-import chokidar from "chokidar";
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { defineConfig } from "vite";
@@ -13,141 +12,121 @@ const input = {
   about: resolve(__dirname, "src/html/about.html"),
 };
 
-// === Вотчер для изображений на лету ===
-function imageWatcher() {
-  let timer = null;
-  const debounceRun = () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      runImageConversion();
-      timer = null;
-    }, 500);
-  };
-  return {
-    name: "image-watcher",
-    configureServer() {
-      const watcher = chokidar.watch("src/assets/img", {
-        persistent: true,
-        ignoreInitial: true,
-        followSymlinks: true,
-        cwd: process.cwd(),
-        awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
-      });
-      watcher.on("add", debounceRun).on("change", debounceRun);
-      console.log(
-        "Вотчер на изображения запущен (только новые/изменённые файлы)"
-      );
-    },
-  };
-}
+const assetTasks = [
+  {
+    key: "fonts",
+    sourceDir: "src/assets/fonts",
+    command: "node scripts/convert-fonts.js",
+    title: "Конвертация шрифтов",
+  },
+  {
+    key: "images",
+    sourceDir: "src/assets/img",
+    command: "node scripts/convert-images.js",
+    title: "Конвертация изображений",
+    supportsTargetPath: true,
+  },
+  {
+    key: "svg",
+    sourceDir: "src/assets/icons",
+    command: "node scripts/convert-svg.js",
+    title: "Оптимизация SVG",
+  },
+];
 
-function runImageConversion() {
-  const imagesDir = "src/assets/img";
-  if (!existsSync(imagesDir)) return;
+function runTask(task, filePath = "") {
+  const absoluteSourceDir = resolve(process.cwd(), task.sourceDir);
+  if (!existsSync(absoluteSourceDir)) return;
+
   try {
-    console.log("Конвертация изображений (только изменённые)...");
-    execSync("node scripts/convert-images.js", { stdio: "inherit" });
-  } catch (e) {
-    console.error("Ошибка конвертации изображений:", e.message);
+    console.log(`${task.title}...`);
+    const command =
+      task.supportsTargetPath && filePath
+        ? `${task.command} ${JSON.stringify(filePath)}`
+        : task.command;
+
+    execSync(command, { stdio: "inherit" });
+  } catch (error) {
+    console.error(`${task.title}: ошибка`, error.message);
   }
 }
 
-// === Вотчер для SVG на лету ===
-function svgWatcher() {
-  let timer = null;
-  const debounceRun = () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      runSvgConversion();
-      timer = null;
-    }, 500);
-  };
-  return {
-    name: "svg-watcher",
-    configureServer() {
-      const watcher = chokidar.watch("src/assets/icons", {
-        persistent: true,
-        ignoreInitial: true,
-        followSymlinks: true,
-        cwd: process.cwd(),
-        awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
-      });
-      watcher.on("add", debounceRun).on("change", debounceRun);
-      console.log("Вотчер на SVG запущен (только новые/изменённые файлы)");
-    },
-  };
-}
-
-function runSvgConversion() {
-  const svgDir = "src/assets/icons";
-  if (!existsSync(svgDir)) return;
-  try {
-    console.log("Оптимизация SVG (только изменённые)...");
-    execSync("node scripts/convert-svg.js", { stdio: "inherit" });
-  } catch (e) {
-    console.error("Ошибка оптимизации SVG:", e.message);
+function runAllAssetTasks() {
+  for (const task of assetTasks) {
+    runTask(task);
   }
 }
 
-// === НОВЫЙ ВОТЧЕР ДЛЯ ШРИФТОВ (на лету) ===
-function fontWatcher() {
-  let timer = null;
-  const debounceRun = () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      runFontConversion();
-      timer = null;
-    }, 500);
+function assetPipeline() {
+  let command = "serve";
+  const timers = new Map();
+
+  const getTaskByPath = (filePath) => {
+    const normalized = filePath.replace(/\\/g, "/");
+
+    if (normalized.includes("/src/assets/fonts/")) {
+      return assetTasks[0];
+    }
+    if (normalized.includes("/src/assets/img/")) {
+      return assetTasks[1];
+    }
+    if (normalized.includes("/src/assets/icons/")) {
+      return assetTasks[2];
+    }
+
+    return null;
   };
+
+  const scheduleTask = (task, filePath = "") => {
+    const activeTimer = timers.get(task.key);
+    if (activeTimer) clearTimeout(activeTimer);
+
+    const timer = setTimeout(() => {
+      runTask(task, filePath);
+      timers.delete(task.key);
+    }, 400);
+
+    timers.set(task.key, timer);
+  };
+
   return {
-    name: "font-watcher",
-    configureServer() {
-      const watcher = chokidar.watch("src/assets/fonts", {
-        persistent: true,
-        ignoreInitial: true,
-        followSymlinks: true,
-        cwd: process.cwd(),
-        awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
-      });
-      watcher.on("add", debounceRun).on("change", debounceRun);
-      console.log("Вотчер на шрифты запущен (только новые/изменённые TTF)");
+    name: "asset-pipeline",
+    configResolved(config) {
+      command = config.command;
     },
-  };
-}
-
-function runFontConversion() {
-  try {
-    console.log("Конвертация шрифтов (только изменённые)...");
-    execSync("node scripts/convert-fonts.js", { stdio: "inherit" });
-  } catch (e) {
-    console.error("Ошибка конвертации шрифтов:", e.message);
-  }
-}
-
-// assetConverter — ТОЛЬКО для билда (упростил, без readdirSync для скорости)
-function assetConverter() {
-  return {
-    name: "asset-converter",
-    buildStart(options) {
-      if (options.command !== "build") return; // Ничего в dev
-      const fontsDir = "src/assets/fonts";
-      const imagesDir = "src/assets/img";
-      if (existsSync(fontsDir)) {
-        try {
-          console.log("Конвертация шрифтов во время билда...");
-          execSync("node scripts/convert-fonts.js", { stdio: "inherit" });
-        } catch (error) {
-          console.error("Font conversion failed:", error.message);
-        }
+    buildStart() {
+      if (command === "build") {
+        runAllAssetTasks();
       }
-      if (existsSync(imagesDir)) {
-        try {
-          console.log("Конвертация изображений во время билда...");
-          execSync("node scripts/convert-images.js", { stdio: "inherit" });
-        } catch (error) {
-          console.error("Image conversion failed:", error.message);
-        }
-      }
+    },
+    configureServer(server) {
+      server.watcher.add([
+        "src/assets/fonts/**/*",
+        "src/assets/img/**/*",
+        "src/assets/icons/**/*",
+      ]);
+
+      const onAssetChange = (filePath) => {
+        const task = getTaskByPath(filePath);
+        if (!task) return;
+
+        scheduleTask(task, filePath);
+        server.ws.send({ type: "full-reload" });
+      };
+
+      const onAssetRemove = (filePath) => {
+        const task = getTaskByPath(filePath);
+        if (!task) return;
+
+        server.ws.send({ type: "full-reload" });
+      };
+
+      server.watcher
+        .on("add", onAssetChange)
+        .on("change", onAssetChange)
+        .on("unlink", onAssetRemove);
+
+      console.log("Asset watch запущен (без тяжелого прогона на старте)");
     },
   };
 }
@@ -180,12 +159,9 @@ export default defineConfig({
   plugins: [
     spriteSvg(),
     handlebars({
-      partialDirectory: resolve(__dirname, "src/blocks"),
+      partialDirectory: resolve(__dirname, "src/html/blocks"),
       reloadOnPartialChange: true,
     }),
-    imageWatcher(),
-    svgWatcher(),
-    fontWatcher(),
-    assetConverter(),
+    assetPipeline(),
   ],
 });

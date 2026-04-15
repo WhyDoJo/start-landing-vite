@@ -10,8 +10,8 @@ const ASSET_VERSION = process.env.ASSET_VERSION || Date.now().toString(36);
 
 // === Статические входные точки для multi-page (flat output, без задержек от readdir) ===
 const input = {
-  index: resolve(__dirname, "src/html/index.html"),
-  about: resolve(__dirname, "src/html/about.html"),
+  index: resolve(__dirname, "src/html/pages/index.html"),
+  about: resolve(__dirname, "src/html/pages/about.html"),
 };
 
 const assetTasks = [
@@ -183,7 +183,7 @@ export default defineConfig({
   root: ".",
   server: {
     port: 3000,
-    open: "/src/html/index.html", // Авто-открытие в dev
+    open: "/src/html/pages/index.html", // Авто-открытие в dev
   },
   build: {
     outDir: "dist",
@@ -207,7 +207,11 @@ export default defineConfig({
   plugins: [
     spriteSvg(),
     handlebars({
-      partialDirectory: resolve(__dirname, "src/html/blocks"),
+      partialDirectory: [
+        resolve(__dirname, "src/html/partials"),
+        resolve(__dirname, "src/html/components"),
+        resolve(__dirname, "src/html/sections"),
+      ],
       reloadOnPartialChange: true,
     }),
     assetPipeline(),

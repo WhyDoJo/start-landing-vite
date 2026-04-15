@@ -1,65 +1,12 @@
 import autoprefixer from "autoprefixer";
 import { execSync } from "child_process";
-import { existsSync, readFileSync } from "fs";
-import { dirname, resolve } from "path";
+import { existsSync } from "fs";
+import { resolve } from "path";
 import { defineConfig } from "vite";
 import handlebars from "vite-plugin-handlebars";
 import spriteSvg from "./scripts/sprite-svg";
 
 const ASSET_VERSION = process.env.ASSET_VERSION || Date.now().toString(36);
-
-function htmlIncludes() {
-  const includePattern = /@include\(\s*["']([^"']+)["']\s*\)/g;
-  const maxRecursion = 100;
-
-  const resolveIncludePath = (includePath, currentFile) => {
-    if (includePath.startsWith("/")) {
-      return resolve(process.cwd(), "src/html", includePath.slice(1));
-    }
-
-    return resolve(dirname(currentFile), includePath);
-  };
-
-  const processIncludes = (content, currentFile, depth = 0, chain = []) => {
-    if (depth > maxRecursion) {
-      throw new Error(`HTML include recursion limit exceeded: ${currentFile}`);
-    }
-
-    return content.replace(includePattern, (match, includePath) => {
-      const resolvedPath = resolveIncludePath(includePath, currentFile);
-
-      if (!existsSync(resolvedPath)) {
-        throw new Error(
-          `Include file not found: ${includePath} in ${currentFile}`
-        );
-      }
-
-      if (chain.includes(resolvedPath)) {
-        throw new Error(`Circular include detected: ${resolvedPath}`);
-      }
-
-      const includeContent = readFileSync(resolvedPath, "utf8");
-      return processIncludes(includeContent, resolvedPath, depth + 1, [
-        ...chain,
-        resolvedPath,
-      ]);
-    });
-  };
-
-  return {
-    name: "html-includes",
-    transformIndexHtml(html, ctx) {
-      const filename =
-        ctx.filename || resolve(process.cwd(), ctx.path.replace(/^\//, ""));
-      return processIncludes(html, filename);
-    },
-    handleHotUpdate({ file, server }) {
-      if (file.endsWith(".html") && file.includes("/src/html/blocks/")) {
-        server.ws.send({ type: "full-reload" });
-      }
-    },
-  };
-}
 
 // === Статические входные точки для multi-page (flat output, без задержек от readdir) ===
 const input = {
@@ -259,7 +206,6 @@ export default defineConfig({
   },
   plugins: [
     spriteSvg(),
-    htmlIncludes(),
     handlebars({
       partialDirectory: resolve(__dirname, "src/html/blocks"),
       reloadOnPartialChange: true,

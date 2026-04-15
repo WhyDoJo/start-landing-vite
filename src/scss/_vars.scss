@@ -1,16 +1,12 @@
-$color-white: #ffffff;
-$color-black: #000000;
-
+$color-white: #fff;
+$color-black: #000;
 $bg-btn-primary: #ee131b;
 $bg-btn-secondary: #161618;
-
 $text-color: #8a8a8a;
 $font-family: "Inter-Tight";
 $second-family: "Inter";
-
 $content-width: 1250px;
 $container-offset: 15px;
-
 $container-width: $content-width + ($container-offset * 2);
 
 // Брейкпоинты (если понадобятся)

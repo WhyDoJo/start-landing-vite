@@ -1,0 +1,13 @@
+// Импортируем переменные и reset глобально (as * — чтобы без префикса)
+@use "./normalize" as *;
+@use "./_reset.scss" as *;
+@use "./_vars.scss" as *;
+@use "./_fonts.scss" as *;
+@use "./globals.scss" as *;
+
+// Если есть другие частичные файлы (base, components) — forward'им их
+//@forward "./blocks/_btn.scss";
+//@forward "./blocks/_navbar.scss"; // Здесь глобальные стили, если нужно (не в partials)
+//@forward "./blocks/_header.scss";
+//@forward "./blocks/_main-nav.scss";
+//@forward "./blocks/_hero.scss"; // Здесь глобальные стили, если нужно (не в partials)

@@ -1,0 +1,19 @@
+$color-white: #ffffff;
+$color-black: #000000;
+
+$bg-btn-primary: #ee131b;
+$bg-btn-secondary: #161618;
+
+$text-color: #8a8a8a;
+$font-family: "Inter-Tight";
+$second-family: "Inter";
+
+$content-width: 1250px;
+$container-offset: 15px;
+
+$container-width: $content-width + ($container-offset * 2);
+
+// Брейкпоинты (если понадобятся)
+$mobile: 480px;
+$tablet: 768px;
+$desktop: 1024px;

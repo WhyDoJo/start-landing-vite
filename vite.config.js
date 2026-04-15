@@ -6,6 +6,8 @@ import { defineConfig } from "vite";
 import handlebars from "vite-plugin-handlebars";
 import spriteSvg from "./scripts/sprite-svg";
 
+const ASSET_VERSION = process.env.ASSET_VERSION || Date.now().toString(36);
+
 // === Статические входные точки для multi-page (flat output, без задержек от readdir) ===
 const input = {
   index: resolve(__dirname, "src/html/index.html"),
@@ -45,10 +47,56 @@ function runTask(task, filePath = "") {
         ? `${task.command} ${JSON.stringify(filePath)}`
         : task.command;
 
-    execSync(command, { stdio: "inherit" });
+    execSync(command, {
+      stdio: "inherit",
+      env: { ...process.env, ASSET_VERSION },
+    });
   } catch (error) {
     console.error(`${task.title}: ошибка`, error.message);
   }
+}
+
+function publicAssetVersioning() {
+  const withVersion = (url) => {
+    if (!url.startsWith("/")) return url;
+    if (!url.match(/^\/(icons|images|fonts)\//)) return url;
+    if (url.includes("?v=")) return url;
+
+    const hashIndex = url.indexOf("#");
+    if (hashIndex >= 0) {
+      const base = url.slice(0, hashIndex);
+      const hash = url.slice(hashIndex);
+      const separator = base.includes("?") ? "&" : "?";
+      return `${base}${separator}v=${ASSET_VERSION}${hash}`;
+    }
+
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}v=${ASSET_VERSION}`;
+  };
+
+  return {
+    name: "public-asset-versioning",
+    apply: "build",
+    transformIndexHtml(html) {
+      return html.replace(
+        /(href|src)=(["'])(\/[^"']+)\2/g,
+        (match, attr, quote, url) =>
+          `${attr}=${quote}${withVersion(url)}${quote}`
+      );
+    },
+    generateBundle(_, bundle) {
+      for (const item of Object.values(bundle)) {
+        if (item.type !== "asset") continue;
+        if (!item.fileName.endsWith(".css")) continue;
+        if (typeof item.source !== "string") continue;
+
+        item.source = item.source.replace(
+          /url\((['"]?)(\/[^)"']+)\1\)/g,
+          (match, quote, url) => `url(${quote}${withVersion(url)}${quote})`
+        );
+      }
+    },
+  };
 }
 
 function runAllAssetTasks() {
@@ -163,5 +211,6 @@ export default defineConfig({
       reloadOnPartialChange: true,
     }),
     assetPipeline(),
+    publicAssetVersioning(),
   ],
 });

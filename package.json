@@ -1,6 +1,5 @@
 {
   "name": "vite-project",
-  "module": "index.ts",
   "type": "module",
   "private": true,
   "scripts": {
@@ -15,10 +14,8 @@
     "lint:css:fix": "bunx stylelint \"src/scss/**/*.scss\" --fix"
   },
   "devDependencies": {
-    "@types/bun": "latest",
     "autoprefixer": "^10.4.22",
     "cheerio": "^1.2.0",
-    "chokidar": "^5.0.0",
     "postcss": "^8.5.6",
     "prettier": "^3.8.1",
     "sass": "^1.96.0",
@@ -38,11 +35,7 @@
     "last 2 versions",
     "not ie <= 8"
   ],
-  "peerDependencies": {
-    "typescript": "^5"
-  },
   "dependencies": {
-    "postcss-nesting": "^14.0.0",
     "ttf2woff": "^3.0.0",
     "ttf2woff2": "^8.0.0"
   }
